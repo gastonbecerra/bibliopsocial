@@ -35,20 +35,11 @@ library(googlesheets4)
 
 ```{r carga, echo=FALSE, message=FALSE, warning=FALSE}
 
-
-
 googlesheets4::gs4_deauth()
-
 articles <- googlesheets4::read_sheet('1h8YDxHjcBqQf5vOIao9rbJezLbVDJSDBclEjzPQlEHU', sheet = 'data')
-
 autores <- googlesheets4::read_sheet('1h8YDxHjcBqQf5vOIao9rbJezLbVDJSDBclEjzPQlEHU', sheet = 'autores')
-glimpse(autores)
-
 variables <- googlesheets4::read_sheet('1h8YDxHjcBqQf5vOIao9rbJezLbVDJSDBclEjzPQlEHU', sheet = 'variables')
-glimpse(variables)
-
 escalas <- googlesheets4::read_sheet('1h8YDxHjcBqQf5vOIao9rbJezLbVDJSDBclEjzPQlEHU', sheet = 'empíricos')
-glimpse(escalas)
 
 ```
 
@@ -78,14 +69,27 @@ articulos por año x tema
 ```{r}
 
 articles %>% count(ano, tema) %>% 
-  ggplot(aes(x=ano,y=n, fill = tema)) + # , color=source
+  ggplot(aes(x=ano,y=n, fill = tema)) + 
   geom_col() + 
-  coord_flip() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+articles %>% count(ano, tipo) %>% 
+  ggplot(aes(x=ano,y=n, fill = tipo)) + 
+  geom_col() + 
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+articles %>%
+  separate_longer_delim(linea, delim = ",") %>%
+  mutate(linea=trimws(linea)) %>%
+  count(ano, linea) %>% 
+  ggplot(aes(x=ano,y=n, fill = linea)) + 
+  geom_col() + 
   theme_minimal() +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
 ```
-
 
 articulos por tema x año
 
@@ -97,13 +101,26 @@ articles %>% count(ano, tema) %>%
   coord_flip() +
   theme_minimal() +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+articles %>% 
+  separate_longer_delim(linea, delim = ",") %>%
+  mutate(linea=trimws(linea)) %>%
+  count(ano, linea) %>% 
+  ggplot(aes(x=linea,y=ano, fill = n)) + # , color=source
+  geom_tile() +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
       
 ```
 
 
 ## autores y universidades
 
-cuantos autores publican por año por universidad (se cuenta 1 paper para cada autor) ... este dato no es muy util. tal vez si fuera cantidad de papers por universidad (no por autor)
+esto deberia ser articulos x universidad (sin importar la cantidad de autores)
+
+2DO: articulso -- contar universidad distintc() -- agrupar por año!!!
+
 
 ```{r tiempo2, echo=FALSE, fig.height=4, fig.width=8}
 
@@ -130,7 +147,7 @@ autores %>%
 ```
 
 
-colaboracion entre autores
+colaboracion entre autores (por coautorias == 1 articulo)
 
 
 ```{r autores, fig.height=9, fig.width=9}
@@ -143,8 +160,8 @@ autores %>%
     left_join( autores %>% count(autor, name = "articulos"), by = c("name"="autor")) %>%
   ggraph::ggraph(layout='fr') +
     geom_edge_link()+
-    geom_node_point(aes(size=articulos))+
-    geom_node_text(aes(label = name), repel = TRUE) +
+    geom_node_point()+
+    geom_node_text(aes(label = name, size=articulos), repel = TRUE) +
     theme_graph()
 
 
@@ -159,8 +176,7 @@ colaboracion entre universidades
 
 autores %>% 
   widyr::pairwise_count(item = sigla, feature = id, sort = TRUE) %>%
-  tidygraph::as_tbl_graph(.,
-  directed = FALSE) %>%
+  tidygraph::as_tbl_graph(.,  directed = FALSE) %>%
   activate(nodes) %>% 
   inner_join( autores %>%
               count(sigla, name = "art_totales") 
@@ -182,17 +198,9 @@ autores %>%
 
 key <- articles %>% 
   separate_longer_delim(keywords, delim = ",") %>%
+  mutate(keywords = trimws(keywords)) %>%
   count(keywords) %>% 
   filter(!is.na(n), !is.na(keywords))
-
-```
-
-```{r key1, eval=FALSE, include=FALSE}
-
-key %>% ggplot(aes(y=(keywords), x=n)) +
-  geom_col() + 
-  theme_minimal() +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
 ```
 
@@ -216,9 +224,11 @@ key %>% ggplot(aes(label=keywords, size=n)) +
 
 ```{r key2, fig.height=7}
 
-
 articles %>% 
   separate_longer_delim(keywords, delim = ",") %>%
+  mutate(keywords = trimws(keywords)) %>%
+  group_by(keywords) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
   widyr::pairwise_count(item = keywords, feature = id, sort = TRUE) %>%
   tidygraph::as_tbl_graph(.,
   directed = FALSE) %>%
@@ -226,9 +236,9 @@ articles %>%
     left_join(key , by=c("name"="keywords") ) %>%
   create_layout( layout = "kk") %>%
   ggraph::ggraph(layout) +
-  geom_edge_link(aes(edge_width = n) )+
-  geom_node_text(aes(label = str_to_title(name) ), repel = TRUE) +
   theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
   geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
 
