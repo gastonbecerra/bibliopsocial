@@ -6,9 +6,9 @@ output:
   html_document:
     fig_width: 6
     fig_height: 4
-    fig_caption: yes
+    fig_caption: true
   word_document: default
-    # always_allow_html: true
+  pdf_document: default
 always_allow_html: true
 ---
 
@@ -47,7 +47,7 @@ escalas <- googlesheets4::read_sheet('1h8YDxHjcBqQf5vOIao9rbJezLbVDJSDBclEjzPQlE
 
 Artículos por año
 
-```{r}
+```{r fig.height=4, fig.width=7}
 
 articles %>% count(ano) %>% 
   ggplot(aes(x=ano,y=n)) + # , color=source
@@ -68,17 +68,18 @@ articulos por año x tema
 
 ```{r}
 
-articles %>% count(ano, tema) %>% 
-  ggplot(aes(x=ano,y=n, fill = tema)) + 
-  geom_col() + 
-  theme_minimal() +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-
 articles %>% count(ano, tipo) %>% 
   ggplot(aes(x=ano,y=n, fill = tipo)) + 
   geom_col() + 
   theme_minimal() +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.title = element_blank()
+  ) +
+  scale_fill_viridis_d(option = "turbo", na.value = "white")
 
 articles %>%
   separate_longer_delim(linea, delim = ",") %>%
@@ -87,7 +88,14 @@ articles %>%
   ggplot(aes(x=ano,y=n, fill = linea)) + 
   geom_col() + 
   theme_minimal() +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.title = element_blank()
+  ) +
+  scale_fill_viridis_d(option = "turbo", na.value = "white")
 
 ```
 
@@ -98,59 +106,48 @@ articulos por tema x año
 articles %>% count(ano, tema) %>% 
   ggplot(aes(x=tema,y=ano, fill = n)) + # , color=source
   geom_tile() +
+  geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
   coord_flip() +
   theme_minimal() +
+  scale_fill_viridis_c(option = "viridis", na.value = "white") +
+  theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
+  theme(axis.title.y=element_blank()) +
+  theme(legend.position = "none") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-
-articles %>% 
-  separate_longer_delim(linea, delim = ",") %>%
-  mutate(linea=trimws(linea)) %>%
-  count(ano, linea) %>% 
-  ggplot(aes(x=linea,y=ano, fill = n)) + # , color=source
-  geom_tile() +
-  coord_flip() +
-  theme_minimal() +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-      
+  
 ```
 
 
 ## autores y universidades
 
-esto deberia ser articulos x universidad (sin importar la cantidad de autores)
-
-2DO: articulso -- contar universidad distintc() -- agrupar por año!!!
-
+(la columna filiacion cuenta la cantidad de universidades distintas por paper (sin importar la cantidad de autores) y separados por coma)
 
 ```{r tiempo2, echo=FALSE, fig.height=4, fig.width=8}
 
-autores %>% 
-  count(sigla, ano, sort = TRUE) %>% 
-  group_by(sigla) %>% mutate(
-    total_papers=sum(n),
-    anios=n()
-    ) %>% 
-  ungroup() %>%
-  filter(!is.na(sigla)) %>%
-    ggplot(aes(x=ano,y=reorder(sigla,total_papers),fill=n)) + 
+articles %>%
+  separate_rows(filiacion, sep = ",") %>%
+  mutate(filiacion=trimws(filiacion)) %>%
+  select(filiacion,ano,titulo) %>%
+  count(ano,filiacion) %>%
+  group_by(filiacion) %>% mutate( total_papers=sum(n) ) %>% ungroup() %>%
+  filter(!is.na(filiacion)) %>%
+  ggplot(aes(x=ano,y=reorder(filiacion,total_papers),fill=n)) + 
       geom_tile() +
       geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
       theme_minimal() +
-      scale_x_continuous(name="", 
-                     minor_breaks = NULL) +
-  scale_fill_gradient(low="lightblue", high="red") +
-  theme(axis.title.y=element_blank()) +
-  theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
-  theme(legend.position = "none") +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+      scale_x_continuous(name="", minor_breaks = NULL) +
+      scale_fill_viridis_c(option = "viridis", na.value = "white") + 
+      theme(axis.title.y=element_blank()) +
+      theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
+      theme(legend.position = "none") +
+      theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
 ```
 
 
 colaboracion entre autores (por coautorias == 1 articulo)
 
-
-```{r autores, fig.height=9, fig.width=9}
+```{r autores, fig.height=6, fig.width=6}
 
 autores %>% 
   widyr::pairwise_count(item = autor, feature = id) %>%
@@ -160,10 +157,12 @@ autores %>%
     left_join( autores %>% count(autor, name = "articulos"), by = c("name"="autor")) %>%
   ggraph::ggraph(layout='fr') +
     geom_edge_link()+
-    geom_node_point()+
-    geom_node_text(aes(label = name, size=articulos), repel = TRUE) +
-    theme_graph()
-
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name, size=articulos), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
 
 ```
 
@@ -172,7 +171,7 @@ colaboracion entre universidades
 - el tamaño de la bola es la cantidad de articulos (contando a cada autor por separado)
 - el grosor de las lineas el grado de colaboraciones (contando a cada autor por separado)
 
-```{r, fig.height=7}
+```{r fig.height=6, fig.width=6}
 
 autores %>% 
   widyr::pairwise_count(item = sigla, feature = id, sort = TRUE) %>%
@@ -183,9 +182,9 @@ autores %>%
               , by=c("name"="sigla") ) %>%
   create_layout( layout = "kk") %>%
   ggraph::ggraph(layout) +
-  geom_edge_link(aes(edge_width = n)  )+
+  geom_edge_link(aes(alpha = n)  )+
   geom_node_point(aes(size = art_totales)) +
-  geom_node_text(aes(label = toupper(name) ), repel = TRUE) +
+  geom_node_text(aes(label = toupper(name), size =  art_totales), repel = TRUE) +
   theme_graph() +
   theme(legend.position = "none")
 
@@ -214,9 +213,17 @@ key <- articles %>%
 
 library(ggwordcloud)
 
-key %>% ggplot(aes(label=keywords, size=n)) +
+key %>% ggplot(aes(label=keywords, size=n, color=n)) +
   geom_text_wordcloud() + 
-  theme_minimal()
+    scale_size_area(max_size = 10) +
+  theme_minimal() + 
+    scale_color_viridis_c(option = "viridis", na.value = "white")
+
+key %>% ggplot(aes(label=keywords, size=n, color=keywords)) +
+  geom_text_wordcloud() + 
+    scale_size_area(max_size = 10) +
+  theme_minimal() + 
+    scale_color_viridis_d(option = "viridis", na.value = "white")
 
 ```
 
@@ -243,6 +250,3 @@ articles %>%
   theme(legend.position = "none")
 
 ```
-
-
-
