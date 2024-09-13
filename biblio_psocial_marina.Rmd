@@ -86,11 +86,21 @@ articles %>%
   ) +
   scale_fill_viridis_d(option = "turbo", na.value = "white")
 
+
+acortar_etiquetas <- function(etiqueta) {
+  case_when(
+    etiqueta == "Infancia, adolescencia y juventud" ~ "IAyJ",
+    etiqueta == "Niñez y adolescencia" ~ "NyA",
+    TRUE ~ etiqueta
+  )
+}
+
 articles %>% 
-  select(-(3:5)) %>% 
+  select(-(2:3)) %>% 
   pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>%
-  count(YEAR, name) %>% 
-  ggplot(aes(x=YEAR,y=n, fill = name)) + 
+  count(Problemática, name) %>% 
+  mutate(Problemática = acortar_etiquetas(Problemática)) %>%  
+  ggplot(aes(x=Problemática,y=n, fill = name)) + 
   geom_col() + 
   theme_minimal() +
   theme(
@@ -99,7 +109,9 @@ articles %>%
     axis.title.x = element_blank(), 
     axis.title.y = element_blank(),
     legend.title = element_blank(),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    # axis.text.x = element_text(angle = 45, hjust = 1),
+    # plot.margin = margin(t = 10, r = 10, b = 30, l = 10)
   ) +
   scale_fill_viridis_d(option = "turbo", na.value = "white")
 
@@ -175,6 +187,24 @@ autores %>%
     theme(axis.title.y=element_blank()) +
     theme(legend.position = "none")
 
+
+
+
+autores %>% 
+  widyr::pairwise_count(item = Autor, feature = Titulo) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(Autor, name = "articulos"), by = c("name"="Autor")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
 ```
 
 colaboracion entre universidades
@@ -204,7 +234,7 @@ autores %>%
 
 ## keywords
 
-```{r wordcloud}
+```{r wordcloud, fig.height=7, fig.width=9}
 
 # library(webshot)
 # library(htmlwidgets)
@@ -227,7 +257,7 @@ keywords %>%
 
 (este grafico hay que chequearlo. creo que con los N de cada keyword piso la relacion!)
 
-```{r key2, fig.height=7}
+```{r key2, fig.height=7, fig.width=9}
 
 keywords %>% 
   group_by(`Palabras clave`) %>% mutate(k=n()) %>% ungroup() %>%
@@ -244,5 +274,24 @@ keywords %>%
   geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
   geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
+
+
+
+keywords %>% 
+  group_by(`Palabras clave`) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = `Palabras clave`, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(`Palabras clave`) , by=c("name"="Palabras clave") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name) ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
 
 ```
