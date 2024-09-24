@@ -1,0 +1,296 @@
+---
+title: "psocial"
+author: "gaston"
+output:
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    fig_caption: true
+  word_document: default
+  pdf_document: default
+always_allow_html: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+
+library(tidyverse)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+library(scales)
+library(readxl)
+library(googlesheets4)
+
+```
+
+
+```{r carga, echo=FALSE, message=FALSE, warning=FALSE}
+
+spreadsheet = 'https://docs.google.com/spreadsheets/d/1xvYv9sDQrvqKSgPbvHatVyhlAHvMl7043ovMNVhH-wQ/edit?usp=sharing'
+googlesheets4::gs4_deauth()
+articles <- googlesheets4::read_sheet(spreadsheet, sheet = 'Datos', )
+autores <- googlesheets4::read_sheet(spreadsheet, sheet = 'Autores')
+escalas <- googlesheets4::read_sheet(spreadsheet, sheet = 'Metodología y Escalas')
+keywords <- googlesheets4::read_sheet(spreadsheet, sheet = 'Palabras clave')
+
+```
+
+## Producción
+
+Artículos por año
+
+```{r fig.height=4, fig.width=7}
+
+articles %>% count(YEAR) %>% 
+  ggplot(aes(x=YEAR,y=n)) + # , color=source
+  geom_line() + 
+  geom_point() +
+  geom_label(aes(label=n)) +
+  theme_minimal() +
+  scale_x_continuous(name="anos", 
+                     minor_breaks = NULL) +
+  #scale_y_continuous(name="Number of Publications") + 
+  #scale_y_continuous(label = scales::label_number(accuracy = 1))+
+  scale_y_discrete()+
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+```
+
+articulos por año x tema
+
+```{r}
+
+articles %>% 
+  select(-(3:5)) %>% 
+  pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>%
+  count(YEAR, name) %>% 
+  ggplot(aes(x=YEAR,y=n, fill = name)) + 
+  geom_col() + 
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  ) +
+  scale_fill_viridis_d(option = "turbo", na.value = "white")
+
+
+acortar_etiquetas <- function(etiqueta) {
+  case_when(
+    etiqueta == "Infancia, adolescencia y juventud" ~ "IAyJ",
+    etiqueta == "Niñez y adolescencia" ~ "NyA",
+    TRUE ~ etiqueta
+  )
+}
+
+articles %>% 
+  select(-(2:3)) %>% 
+  pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>%
+  count(Problemática, name) %>% 
+  mutate(Problemática = acortar_etiquetas(Problemática)) %>%  
+  ggplot(aes(x=Problemática,y=n, fill = name)) + 
+  geom_col() + 
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    # axis.text.x = element_text(angle = 45, hjust = 1),
+    # plot.margin = margin(t = 10, r = 10, b = 30, l = 10)
+  ) +
+  scale_fill_viridis_d(option = "turbo", na.value = "white")
+
+
+
+```
+
+articulos por tema x año
+
+```{r}
+
+articles %>% 
+  select(-(3:5)) %>% 
+  pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>%
+  count(YEAR, name) %>% 
+  ggplot(aes(x=name,y=as.factor(YEAR), fill = n)) + # , color=source
+  geom_tile() +
+  geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_viridis_c(option = "viridis", na.value = "white") +
+  theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
+  theme(axis.title.y=element_blank()) +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+  
+```
+
+
+## autores y universidades
+
+(la columna filiacion cuenta la cantidad de universidades distintas por paper (sin importar la cantidad de autores) y separados por coma)
+
+```{r tiempo2, echo=FALSE, fig.height=4, fig.width=8}
+
+autores %>% 
+  count(Siglas, Titulo, Año) %>%
+  count(Año, Siglas) %>%
+  group_by(Siglas) %>% 
+  mutate(total_papers = sum(n)) %>% 
+  ungroup() %>%
+  filter(!is.na(Siglas)) %>%
+  ggplot(aes(x = Año, y = reorder(Siglas, total_papers), fill = n)) + 
+  geom_tile() +
+  geom_text(aes(label = n), color = "white", show.legend = FALSE, size = 3) +
+  theme_minimal() +
+  scale_x_continuous(name = "", minor_breaks = NULL, labels = scales::number_format(accuracy = 1)) +
+  scale_fill_viridis_c(option = "viridis", na.value = "white") + 
+  theme(axis.title.y = element_blank()) +
+  theme(plot.caption = element_text(hjust = 0.5, size = rel(1))) +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+```
+
+
+colaboracion entre autores (por coautorias == 1 articulo)
+
+```{r autores, fig.height=6, fig.width=6}
+
+autores %>% 
+  widyr::pairwise_count(item = Autor, feature = Titulo) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(Autor, name = "articulos"), by = c("name"="Autor")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name, size=articulos), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
+
+
+
+autores %>% 
+  widyr::pairwise_count(item = Autor, feature = Titulo) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(Autor, name = "articulos"), by = c("name"="Autor")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
+```
+
+colaboracion entre universidades
+
+- el tamaño de la bola es la cantidad de articulos (contando a cada autor por separado)
+- el grosor de las lineas el grado de colaboraciones (contando a cada autor por separado)
+
+```{r fig.height=6, fig.width=6}
+
+autores %>% 
+  widyr::pairwise_count(item = Siglas, feature = Titulo) %>%
+  tidygraph::as_tbl_graph(.,  directed = FALSE) %>%
+  activate(nodes) %>% 
+  inner_join( autores %>%
+              count(Siglas, name = "art_totales") 
+              , by=c("name"="Siglas") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  geom_edge_link(aes(alpha = n)  )+
+  geom_node_point(aes(size = art_totales)) +
+  geom_node_text(aes(label = toupper(name), size =  art_totales), repel = TRUE) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+```
+
+
+## keywords
+
+```{r wordcloud, fig.height=7, fig.width=9}
+
+# library(webshot)
+# library(htmlwidgets)
+# mygraph <- wordcloud2(data = key, size = .5)
+# saveWidget(mygraph, "tmp.html", selfcontained = F)
+# webshot("tmp.html", "wc1.png", delay = 5, vwidth = 900, vheight = 700)
+
+library(ggwordcloud)
+
+keywords %>% 
+    count(`Palabras clave`) %>%
+  filter(!is.na(`Palabras clave`)) %>%
+  ggplot(aes(label=`Palabras clave`, size=n, color=`Palabras clave`)) +
+  geom_text_wordcloud() + 
+    # scale_size_area(max_size = 7) +
+  theme_minimal() + 
+    scale_color_viridis_d(option = "viridis", na.value = "white")
+
+```
+
+(este grafico hay que chequearlo. creo que con los N de cada keyword piso la relacion!)
+
+```{r key2, fig.height=7, fig.width=9}
+
+keywords %>% 
+  group_by(`Palabras clave`) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = `Palabras clave`, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(`Palabras clave`) , by=c("name"="Palabras clave") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
+
+
+keywords %>% 
+  group_by(`Palabras clave`) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = `Palabras clave`, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(`Palabras clave`) , by=c("name"="Palabras clave") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name) ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
+
+```
