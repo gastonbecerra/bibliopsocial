@@ -88,6 +88,8 @@ articles %>% select(-(3:5)) %>% pivot_longer(-(1:2)) %>% filter(!is.na(value)) %
 
 articulos por tema x año
 
+(ESTO LO VAMOS A SEPARAR EN 2 GRAFICOS: TEMAS Y METODOLOGIAS)
+
 ```{r}
 
 articles %>% select(-(3:5)) %>% pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>% 
@@ -152,6 +154,22 @@ autores %>%
     theme(axis.title.y=element_blank()) +
     theme(legend.position = "none")
 
+
+autores %>% 
+  widyr::pairwise_count(item = AUTHOR, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(AUTHOR, name = "articulos"), by = c("name"="AUTHOR")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
 ```
 
 colaboracion entre universidades
@@ -159,7 +177,7 @@ colaboracion entre universidades
 - el tamaño de la bola es la cantidad de articulos (contando a cada autor por separado)
 - el grosor de las lineas el grado de colaboraciones (contando a cada autor por separado)
 
-```{r fig.height=6, fig.width=6}
+```{r fig.height=3, fig.width=6}
 
 autores %>% 
   widyr::pairwise_count(item = UNIVERSITY_INITIALS, feature = ARTICLE) %>%
@@ -181,7 +199,7 @@ autores %>%
 
 ## keywords
 
-```{r wordcloud}
+```{r wordcloud, fig.height=9, fig.width=9}
 
 # library(webshot)
 # library(htmlwidgets)
@@ -222,30 +240,22 @@ keywords %>%
   geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
 
-```
 
-variables relacionadas
 
-```{r}
-
-variables %>% 
-  rename("var"=4) %>%
-  group_by(var) %>% mutate(k=n()) %>% ungroup() %>%
+keywords %>% 
+  group_by(KEYWORDS) %>% mutate(k=n()) %>% ungroup() %>%
   # filter(k>1) %>%
-  widyr::pairwise_count(item = var, feature = ARTICLE, sort = TRUE) %>%
+  widyr::pairwise_count(item = KEYWORDS, feature = ARTICLE, sort = TRUE) %>%
   tidygraph::as_tbl_graph(.,
   directed = FALSE) %>%
-  activate(nodes) %>%
-    left_join(variables %>% rename("var"=4) %>% group_by(var) %>% summarize(k=n()) , by=c("name"="var") ) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(KEYWORDS) , by=c("name"="KEYWORDS") ) %>%
   create_layout( layout = "kk") %>%
   ggraph::ggraph(layout) +
   theme_graph() +
   geom_edge_link(aes(edge_alpha = n) )+
-  geom_node_text(aes(label = str_to_title(name), size = k ), repel = TRUE) +
-  geom_node_point(aes(size = k)) +
+  geom_node_text(aes(label = str_to_title(name) ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
 
-
-
 ```
-

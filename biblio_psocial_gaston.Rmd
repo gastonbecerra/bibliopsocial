@@ -34,12 +34,23 @@ library(googlesheets4)
 
 ```{r carga, echo=FALSE, message=FALSE, warning=FALSE}
 
-spreadsheet = 'https://docs.google.com/spreadsheets/d/1xvYv9sDQrvqKSgPbvHatVyhlAHvMl7043ovMNVhH-wQ/edit?usp=sharing'
-googlesheets4::gs4_deauth()
-articles <- googlesheets4::read_sheet(spreadsheet, sheet = 'Datos', )
-autores <- googlesheets4::read_sheet(spreadsheet, sheet = 'Autores')
-escalas <- googlesheets4::read_sheet(spreadsheet, sheet = 'Metodología y Escalas')
-keywords <- googlesheets4::read_sheet(spreadsheet, sheet = 'Palabras clave')
+gs4_deauth()
+sheet_url <- "https://docs.google.com/spreadsheets/d/1Vn0MYaZwBshZLEeZCj67Jo4uWvZawI0emsd-26ru_0U/edit?usp=sharing"
+data <- googlesheets4::read_sheet(sheet_url)
+articles <- data %>%
+  select(input_url = `input_url`, 
+         YEAR = `DC.Date.created`, 
+         author = `DC.Creator.PersonalName`, 
+         description = `DC.Description`, 
+         title = `citation_title`, 
+         keywords = `keywords`,
+         institution = `citation_author_institution`)
+
+glimpse(articles)
+
+# autores <- googlesheets4::read_sheet(spreadsheet, sheet = 'Autores')
+# escalas <- googlesheets4::read_sheet(spreadsheet, sheet = 'Metodología y Escalas')
+# keywords <- googlesheets4::read_sheet(spreadsheet, sheet = 'Palabras clave')
 
 ```
 
@@ -47,9 +58,13 @@ keywords <- googlesheets4::read_sheet(spreadsheet, sheet = 'Palabras clave')
 
 Artículos por año
 
+no lo mostraria porque a lo sumo muestra que neustra periodicidad es muy poco constante
+
 ```{r fig.height=4, fig.width=7}
 
-articles %>% count(YEAR) %>% 
+articles %>% 
+  mutate(YEAR = lubridate::year(YEAR) ) %>%
+  count(YEAR) %>% 
   ggplot(aes(x=YEAR,y=n)) + # , color=source
   geom_line() + 
   geom_point() +

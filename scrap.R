@@ -12,7 +12,6 @@ glimpse(meta)
 
 table(meta$meta_data_name)
 
-
 meta2 <- meta %>% 
   select(-meta_data_scheme,-meta_data_xmllang) %>%
   # filter(meta_data_name %in% campos) %>%
@@ -24,16 +23,19 @@ meta2 <- meta %>%
 glimpse(meta2)
 
 gs4_auth()
-
 # gs4_deauth()
 
 sheet_url <- "https://docs.google.com/spreadsheets/d/1Vn0MYaZwBshZLEeZCj67Jo4uWvZawI0emsd-26ru_0U/edit?usp=sharing"
 sheet_write(meta2, ss = sheet_url, sheet = "Sheet1")
+gs4_deauth()
 
 
 # leer -----------------
 
-gs4_deauth()
+sheet_url <- "https://docs.google.com/spreadsheets/d/1Vn0MYaZwBshZLEeZCj67Jo4uWvZawI0emsd-26ru_0U/edit?usp=sharing"
+data <- googlesheets4::read_sheet(sheet_url)
+
+
 data <- googlesheets4::read_sheet(sheet_url)
 glimpse(data)
 
