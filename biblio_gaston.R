@@ -3,6 +3,12 @@ library(tidyverse)
 library(googlesheets4)
 library(gt)
 library(gtExtras)
+library(stringr)
+library(widyr)
+library(tidygraph)
+library(ggraph)
+library(ggplot2)
+library(viridisLite)
 
 gs4_deauth()
 sheet_url <- "https://docs.google.com/spreadsheets/d/1Vn0MYaZwBshZLEeZCj67Jo4uWvZawI0emsd-26ru_0U/edit?usp=sharing"
@@ -20,16 +26,31 @@ articles <- data %>%
          title = `citation_title`, 
          keywords = `keywords`,
          institution = `citation_author_institution`) %>%
-  mutate(YEAR = lubridate::year(YEAR) )
+  mutate(YEAR = lubridate::year(YEAR) ) %>%
+  filter(tipo != "Introduction")
+
+table(articles$institution) %>% length()
+glimpse(articles)
+
+source('equivalencias.R')
+
+articles <- articles %>%
+  separate_rows(institution, sep = "[,;]") %>%
+  mutate(institution = str_trim(institution)) %>%
+  mutate(institution = ifelse(institution %in% names(equivalencias), 
+                              equivalencias[institution], institution)) %>%
+  group_by(input_url, YEAR, lang, tipo, author, description, title, keywords) %>%
+  summarise(institution = paste(unique(institution), collapse = "; ")) %>%
+  ungroup()
+
+table(articles$institution) %>% length()
 glimpse(articles)
 
 
 # tabla sintetica -------------------
 
-#2do: falta normalizar instituciones
 
 articles %>%
-  filter(tipo != "Introduction") %>%
   group_by(YEAR) %>%
   summarise(
     articulos_publicados = n(),
@@ -47,22 +68,22 @@ articles %>%
   gt() %>%
   gt_plt_bar_stack(idioma_proporciones, width = 65,
                    labels = c("es", "en", "pt"),
-                   palette = c("#ff4343", "#bfbfbf", "#0a1c2b")) %>%
+                   palette = viridis(3, option = "viridis")) %>%
   gt_plt_bar_stack(tipo_proporciones, width = 65,
                    labels = c("Articles", "Dossier"),
-                   palette = c("#1f77b4", "#ff7f0e")) %>%
+                   palette = viridis(2, option = "viridis")) %>%
   cols_hide(columns = c(idiomas_es, idiomas_en, idiomas_pt, 
-                        tipo_articles, tipo_dossier))
+                        tipo_articles, tipo_dossier)) %>%
+  cols_label(
+    YEAR = "Año",
+    articulos_publicados = "Artículos",
+    autores_unicos = "Autores",
+    instituciones_unicas = "Afiliaciones"
+  )
 
 
 # keywords -----------------------
 
-
-library(stringr)
-library(widyr)
-library(tidygraph)
-library(ggraph)
-library(ggplot2)
 
 keywords <- articles %>%
   separate_rows(keywords, sep = "[,;]") %>%
@@ -94,6 +115,7 @@ keywords %>%
 
 # autores ----------------------
 
+
 authors <- articles %>%
   separate_rows(author, sep = "[,;]") %>%
   mutate(author = str_trim(author)) %>%
@@ -115,7 +137,44 @@ authors %>%
   create_layout(layout = "kk") %>%
   ggraph() +
   theme_graph() +
-  geom_edge_link(aes(edge_alpha = n)) +
-  geom_node_text(aes(label = name, size = n), repel = TRUE) +
-  geom_node_point(aes(size = n)) +
+  # geom_edge_link(aes(edge_alpha = n)) +
+  # geom_node_text(aes(label = name, size = n), repel = TRUE) +
+  # geom_node_point(aes(size = n)) +
+  # theme(legend.position = "none")
+  geom_edge_link(aes(edge_alpha = n, edge_width = n, color = n)) +  # Variar grosor y color de las colaboraciones
+  geom_node_text(aes(label = name, size = n), repel = TRUE) +  # Tamaño de texto basado en el número de colaboraciones
+  geom_node_point(aes(size = n), color = "darkblue") +  # Tamaño de los nodos basado en número de colaboraciones
+  scale_edge_width(range = c(0.5, 3)) +  # Controlar el rango del grosor de los enlaces
+  scale_edge_color_continuous(low = "lightblue", high = "darkblue") +  # Colorear los enlaces por intensidad
   theme(legend.position = "none")
+
+
+
+# instituciones por año ---------------------
+
+
+instituciones <- articles %>%
+  separate_rows(institution, sep = "[,;]") %>%
+  mutate(institution = str_trim(institution)) %>%
+  select(input_url, YEAR, institution) %>%
+  filter(!is.na(institution), institution != "NA", institution != "") %>%
+  mutate(count=n(), .by = institution) %>%
+  mutate(institution = ifelse(count > 2, institution, "Otros")) %>%
+  pivot_longer(cols = c(-input_url,-YEAR,-count), names_to = "xxx", values_to = "institution") %>%
+  select(-xxx)
+
+instituciones %>%
+  count(YEAR, institution) %>% 
+  left_join(instituciones) %>%
+  ggplot(aes(x=fct_reorder(institution, count, .desc = FALSE), y=as.factor(YEAR), fill = n)) + 
+  geom_tile() +
+  geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_viridis_c(option = "viridis", na.value = "white") +
+  theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
+  theme(axis.title.y=element_blank()) +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+  
