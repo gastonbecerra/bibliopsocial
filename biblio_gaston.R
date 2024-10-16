@@ -10,6 +10,9 @@ library(ggraph)
 library(ggplot2)
 library(viridisLite)
 
+# borrador https://docs.google.com/document/d/1qUtIZv4qiGdOFx3BMQ8iIjKpgbeRL7ZsSfjLxxi3Sig/edit#heading=h.ij3dr2225ayk
+
+
 gs4_deauth()
 sheet_url <- "https://docs.google.com/spreadsheets/d/1Vn0MYaZwBshZLEeZCj67Jo4uWvZawI0emsd-26ru_0U/edit?usp=sharing"
 data <- googlesheets4::read_sheet(sheet_url)

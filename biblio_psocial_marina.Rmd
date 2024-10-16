@@ -137,6 +137,24 @@ articles %>%
   theme(axis.title.y=element_blank()) +
   theme(legend.position = "none") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
+
+articles %>% 
+  select(-(3:5)) %>% 
+  pivot_longer(-(1:2)) %>% filter(!is.na(value)) %>%
+  count(YEAR, name) %>% 
+  ggplot(aes(x=YEAR,y=n, colour = name)) + # , color=source
+  geom_line() + 
+  geom_label(aes(label=n)) +
+  # geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
+  # coord_flip() +
+  theme_minimal() +
+  # scale_fill_viridis_c(option = "viridis", na.value = "white") +
+  #theme(plot.caption = element_text(hjust=0.5, size=rel(1))) +
+  theme(axis.title.y=element_blank()) +
+  # theme(legend.position = "none") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(colour = NULL)  # Quitar el título "name" de la leyenda
   
 ```
 
