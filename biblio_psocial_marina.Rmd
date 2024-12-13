@@ -155,6 +155,21 @@ articles %>%
   # theme(legend.position = "none") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   labs(colour = NULL)  # Quitar el título "name" de la leyenda
+
+articles %>% 
+  select(-(3:5)) %>% 
+  pivot_longer(-(1:2)) %>% 
+  filter(!is.na(value)) %>%
+  count(YEAR, name) %>%
+  ggplot(aes(x = YEAR, y = n, fill = name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = n), position = position_stack(vjust = 0.5), size = 3, color = "white") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        legend.title = element_blank()) +
+  labs(fill = NULL)
+
   
 ```
 
