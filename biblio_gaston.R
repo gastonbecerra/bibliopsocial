@@ -21,7 +21,7 @@ names(data)
 
 articles <- data %>%
   select(input_url = `input_url`, 
-         YEAR = `DC.Date.created`, 
+         year = `citation_date`, 
          lang = `DC.Language`, 
          tipo = `DC.Type.articleType`, 
          author = `DC.Creator.PersonalName`, 
@@ -29,8 +29,14 @@ articles <- data %>%
          title = `citation_title`, 
          keywords = `keywords`,
          institution = `citation_author_institution`) %>%
-  mutate(YEAR = lubridate::year(YEAR) ) %>%
-  filter(tipo != "Introduction")
+  # filter(tipo != "Introduction") %>%
+  mutate(
+    year = if_else(
+      str_length(year) == 4, 
+      as.numeric(year), # Si es solo el año, lo convertimos directamente
+      year(ymd(year))   # Si es una fecha completa, extraemos el año con lubridate
+    )
+  )
 
 table(articles$institution) %>% length()
 glimpse(articles)
@@ -42,7 +48,7 @@ articles <- articles %>%
   mutate(institution = str_trim(institution)) %>%
   mutate(institution = ifelse(institution %in% names(equivalencias), 
                               equivalencias[institution], institution)) %>%
-  group_by(input_url, YEAR, lang, tipo, author, description, title, keywords) %>%
+  group_by(input_url, year, lang, tipo, author, description, title, keywords) %>%
   summarise(institution = paste(unique(institution), collapse = "; ")) %>%
   ungroup()
 
@@ -54,7 +60,7 @@ glimpse(articles)
 
 
 articles %>%
-  group_by(YEAR) %>%
+  group_by(year) %>%
   summarise(
     articulos_publicados = n(),
     autores_unicos = n_distinct(unlist(strsplit(author, ", "))),
@@ -78,7 +84,7 @@ articles %>%
   cols_hide(columns = c(idiomas_es, idiomas_en, idiomas_pt, 
                         tipo_articles, tipo_dossier)) %>%
   cols_label(
-    YEAR = "Año",
+    year = "Año",
     articulos_publicados = "Artículos",
     autores_unicos = "Autores",
     instituciones_unicas = "Afiliaciones"
@@ -159,17 +165,17 @@ authors %>%
 instituciones <- articles %>%
   separate_rows(institution, sep = "[,;]") %>%
   mutate(institution = str_trim(institution)) %>%
-  select(input_url, YEAR, institution) %>%
+  select(input_url, year, institution) %>%
   filter(!is.na(institution), institution != "NA", institution != "") %>%
   mutate(count=n(), .by = institution) %>%
   mutate(institution = ifelse(count > 2, institution, "Otros")) %>%
-  pivot_longer(cols = c(-input_url,-YEAR,-count), names_to = "xxx", values_to = "institution") %>%
+  pivot_longer(cols = c(-input_url,-year,-count), names_to = "xxx", values_to = "institution") %>%
   select(-xxx)
 
 instituciones %>%
-  count(YEAR, institution) %>% 
+  count(year, institution) %>% 
   left_join(instituciones) %>%
-  ggplot(aes(x=fct_reorder(institution, count, .desc = FALSE), y=as.factor(YEAR), fill = n)) + 
+  ggplot(aes(x=fct_reorder(institution, count, .desc = FALSE), y=as.factor(year), fill = n)) + 
   geom_tile() +
   geom_text(aes(label=n), color="white", show.legend = FALSE, size=3) +
   coord_flip() +

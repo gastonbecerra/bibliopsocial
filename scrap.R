@@ -1,9 +1,9 @@
-library(ojsr)
 library(tidyverse)
+library(ojsr)
 library(googlesheets4)
 
 journal_url <- "https://publicaciones.sociales.uba.ar/index.php/psicologiasocial"
-issues <- ojsr::get_issues_from_archive(journal_url)
+issues <- ojsr::get_issues_from_archive(journal_url, verbose = TRUE)
 articles <- ojsr::get_articles_from_issue(input_url = issues$output_url, 
                                           verbose = TRUE)
 meta <- ojsr::get_html_meta_from_article(articles$output_url, verbose = TRUE)

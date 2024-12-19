@@ -168,7 +168,8 @@ articles %>%
   theme(axis.title.x = element_blank(), 
         axis.title.y = element_blank(), 
         legend.title = element_blank()) +
-  labs(fill = NULL)
+  labs(fill = NULL) +
+  scale_fill_viridis_d(option = "viridis", na.value = "white")
 
   
 ```
