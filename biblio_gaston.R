@@ -66,24 +66,23 @@ articles %>%
     articulos_publicados = n(),
     autores_unicos = n_distinct(unlist(strsplit(author, ", "))),
     instituciones_unicas = n_distinct(unlist(strsplit(institution, ", "))),
+    tipo_articles = sum(tipo == "Articles") / n() * 100,
+    tipo_dossier = sum(tipo == "Dossier") / n() * 100,
     idiomas_es = sum(lang == "es") / n() * 100,
     idiomas_en = sum(lang == "en") / n() * 100,
     idiomas_pt = sum(lang %in% c("pt", "Portugues")) / n() * 100,
-    tipo_articles = sum(tipo == "Articles") / n() * 100,
-    tipo_dossier = sum(tipo == "Dossier") / n() * 100,
     idioma_proporciones = list(c(idiomas_es, idiomas_en, idiomas_pt)),
     tipo_proporciones = list(c(tipo_articles, tipo_dossier)),
     .groups = 'drop'
   ) %>%
   gt() %>%
-  gt_plt_bar_stack(idioma_proporciones, width = 65,
-                   labels = c("es", "en", "otro"),
-                   palette = viridis::viridis(3, option = "viridis")) %>%
   gt_plt_bar_stack(tipo_proporciones, width = 65,
                    labels = c("Articles", "Dossier"),
                    palette = viridis::viridis(2, option = "viridis")) %>%
-  cols_hide(columns = c(idiomas_es, idiomas_en, idiomas_pt, 
-                        tipo_articles, tipo_dossier)) %>%
+  gt_plt_bar_stack(idioma_proporciones, width = 65,
+                   labels = c("es", "en", "otro"),
+                   palette = viridis::viridis(3, option = "viridis")) %>%
+  cols_hide(columns = c(tipo_articles, tipo_dossier, idiomas_es, idiomas_en, idiomas_pt)) %>%
   cols_label(
     year = "Año",
     articulos_publicados = "Artículos",
@@ -178,24 +177,6 @@ authors <- articles %>%
   mutate(author = tools::toTitleCase(author)) %>%  # Capitalización adecuada
   group_by(author) %>% mutate(k = n()) %>% ungroup()
 
-authors %>%
-  widyr::pairwise_count(item = author, feature = input_url, sort = TRUE) %>%
-  as_tbl_graph(directed = FALSE) %>%
-  activate(nodes) %>%
-  left_join(authors %>% count(author), by = c("name" = "author")) %>%
-  create_layout(layout = "kk") %>%
-  ggraph() +
-  theme_graph() +
-  # geom_edge_link(aes(edge_alpha = n)) +
-  # geom_node_text(aes(label = name, size = n), repel = TRUE) +
-  # geom_node_point(aes(size = n)) +
-  # theme(legend.position = "none")
-  geom_edge_link(aes(edge_alpha = n, edge_width = n, color = n)) +  # Variar grosor y color de las colaboraciones
-  geom_node_text(aes(label = name, size = n), repel = TRUE) +  # Tamaño de texto basado en el número de colaboraciones
-  geom_node_point(aes(size = n)) +  # Tamaño de los nodos basado en número de colaboraciones
-  scale_edge_width(range = c(1, 3)) +  # Controlar el rango del grosor de los enlaces
-  # scale_edge_color_continuous(low = "lightblue", high = "darkblue") +  # Colorear los enlaces por intensidad
-  theme(legend.position = "none")
 
 instituciones <- articles %>%
   separate_rows(institution, sep = "[,;]") %>%
@@ -222,6 +203,58 @@ instituciones %>%
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
 
+authors %>%
+  widyr::pairwise_count(item = author, feature = input_url, sort = TRUE) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  activate(nodes) %>%
+  left_join(authors %>% count(author), by = c("name" = "author")) %>%
+  create_layout(layout = "kk") %>%
+  ggraph() +
+  theme_graph() +
+  # geom_edge_link(aes(edge_alpha = n)) +
+  # geom_node_text(aes(label = name, size = n), repel = TRUE) +
+  # geom_node_point(aes(size = n)) +
+  # theme(legend.position = "none")
+  geom_edge_link(aes(edge_alpha = n, edge_width = n, color = n)) +  # Variar grosor y color de las colaboraciones
+  geom_node_text(aes(label = name, size = n), repel = TRUE) +  # Tamaño de texto basado en el número de colaboraciones
+  geom_node_point(aes(size = n)) +  # Tamaño de los nodos basado en número de colaboraciones
+  scale_edge_width(range = c(1, 3)) +  # Controlar el rango del grosor de los enlaces
+  # scale_edge_color_continuous(low = "lightblue", high = "darkblue") +  # Colorear los enlaces por intensidad
+  theme(legend.position = "none")
+
+
+instituciones2 <- articles %>% # tabla auxiliar para colaboracion x inst
+  separate_rows(institution, sep = "[,;]") %>%
+  mutate(institution = str_trim(institution)) %>%
+  select(input_url, year, institution) %>%
+  filter(!is.na(institution), institution != "NA", institution != "") %>%
+  mutate(count=n(), .by = institution) %>%
+  # mutate(institution = ifelse(count > 2, institution, "Otros")) %>%
+  pivot_longer(cols = c(-input_url,-year,-count), names_to = "xxx", values_to = "institution") %>%
+  select(-xxx)
+
+articles %>%
+  separate_rows(institution, sep = "[,;]") %>%
+  mutate(institution = str_trim(institution)) %>%
+  select(input_url, year, institution) %>%
+  filter(!is.na(institution), institution != "NA", institution != "") %>%
+  mutate(count=n(), .by = institution) %>%
+  pivot_longer(cols = c(-input_url,-year,-count), names_to = "xxx", values_to = "institution") %>%
+  select(-xxx) %>%
+  filter(count>0) %>%
+  widyr::pairwise_count(item = institution, feature = input_url, sort = TRUE) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  activate(nodes) %>%
+  left_join(instituciones2 %>% count(institution), by = c("name" = "institution")) %>%
+  create_layout(layout = "kk") %>%
+  ggraph() +
+  geom_edge_link(aes(edge_alpha = n, edge_width = n, color = n)) +
+  geom_node_point(aes(size = n)) +
+  geom_node_text(aes(label = name, size = n), repel = TRUE) +
+  scale_edge_width(range = c(0.5, 2)) +
+  scale_edge_color_continuous(low = "lightblue", high = "darkblue") +
+  theme_graph() +
+  theme(legend.position = "none")
 
 
 
@@ -254,4 +287,26 @@ keywords %>%
   # geom_node_text(aes(label = str_to_title(name)), repel = TRUE, max.overlaps = 50) + 
   geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
+
+
+
+x <- keywords %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = key, feature = input_url, sort = TRUE) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  mutate(id=row_number()) %>%
+  left_join(keywords %>% count(key), by = c("name" = "key"))
+view(x)
+
+y <- keywords %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = key, feature = input_url, sort = TRUE) %>%
+  as_tbl_graph(directed = FALSE) %>%
+  activate(edges) %>%
+  
+  as_tibble()
+view(y)
+
 
