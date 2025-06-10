@@ -86,7 +86,7 @@ articulos por año x tema
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, QUALITATIVE, QUANTITATIVE, BIBLIOMETRY),
+  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, `EMPIRICAL: QUALITATIVE`, `EMPIRICAL: QUANTITATIVE`),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
@@ -106,7 +106,7 @@ articles %>%
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, QUALITATIVE, QUANTITATIVE, BIBLIOMETRY),
+  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, `EMPIRICAL: QUALITATIVE`, `EMPIRICAL: QUANTITATIVE`),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
@@ -120,18 +120,20 @@ articles %>%
     panel.grid.minor = element_blank(),
     axis.title.x = element_blank(), 
     axis.title.y = element_blank(),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.position = "bottom" 
   ) +
   scale_fill_viridis_d(option = "turbo", na.value = "white")
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES),
+  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES,),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
-  count(YEAR, topic) %>% 
-  ggplot(aes(x=YEAR,y=n, fill = topic)) + 
+  count(YEAR, topic, Revista) %>% 
+  ggplot(aes(x=YEAR,y=n, fill=topic)) + 
+  facet_wrap(~Revista) +
   geom_col() + 
   theme_minimal() +
   theme(
@@ -139,18 +141,20 @@ articles %>%
     panel.grid.minor = element_blank(),
     axis.title.x = element_blank(), 
     axis.title.y = element_blank(),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.position = "bottom" 
   ) +
   scale_fill_viridis_d(option = "turbo", na.value = "white")
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(PSYCHOMETRICS, THEORETICAL, QUALITATIVE, QUANTITATIVE, BIBLIOMETRY),
+  pivot_longer(cols = c(THEORETICAL, `EMPIRICAL: QUALITATIVE`, `EMPIRICAL: QUANTITATIVE`),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
-  count(YEAR, topic) %>% 
-  ggplot(aes(x=YEAR,y=n, fill = topic)) + 
+  count(YEAR, topic, Revista) %>% 
+  ggplot(aes(x=YEAR,y=n, fill=topic)) + 
+  facet_wrap(~Revista) +
   geom_col() + 
   theme_minimal() +
   theme(
@@ -158,9 +162,12 @@ articles %>%
     panel.grid.minor = element_blank(),
     axis.title.x = element_blank(), 
     axis.title.y = element_blank(),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.position = "bottom" 
   ) +
   scale_fill_viridis_d(option = "turbo", na.value = "white")
+
+
 
 
 ```
@@ -172,7 +179,7 @@ articulos por tema x año
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, QUALITATIVE, QUANTITATIVE, BIBLIOMETRY),
+  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, `EMPIRICAL: QUALITATIVE`, `EMPIRICAL: QUANTITATIVE`),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
@@ -191,7 +198,7 @@ articles %>%
 
 articles %>% 
   select(-SAMPLE, -POPULATION) %>%  
-  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, QUALITATIVE, QUANTITATIVE, BIBLIOMETRY),
+  pivot_longer(cols = c(`MENTAL-HEALTH`, `POSITIVE-PSYCHOLOGY`, PERSONALITY, PREJUDICE, `POLITICAL-PSYCHOLOGY`, HISTORY, PSYCHOMETRICS, SOCIAL_SCIENCES, THEORETICAL, `EMPIRICAL: QUALITATIVE`, `EMPIRICAL: QUANTITATIVE`),
                names_to = "topic",
                values_to = "present") %>%
   filter(present == TRUE) %>%  
@@ -218,7 +225,7 @@ articles %>%
 ```{r tiempo2, echo=FALSE, fig.height=4, fig.width=8}
 
 autores %>% 
-  count(UNIVERSITY_INITIALS, ARTICLE, YEAR) %>%
+  count(UNIVERSITY_INITIALS, ARTICLE, YEAR,) %>%
   count(YEAR, UNIVERSITY_INITIALS) %>%
   group_by(UNIVERSITY_INITIALS) %>% 
   mutate(total_papers = sum(n)) %>% 
@@ -235,10 +242,40 @@ autores %>%
   theme(legend.position = "none") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  count(UNIVERSITY_INITIALS, ARTICLE, YEAR, Revista) %>%
+  count(YEAR, UNIVERSITY_INITIALS, Revista) %>%
+  group_by(UNIVERSITY_INITIALS) %>% 
+  mutate(total_papers = sum(n)) %>% 
+  ungroup() %>%
+  # filter(!is.na(UNIVERSITY_INITIALS)) %>%
+  ggplot(aes(x = YEAR, y = reorder(UNIVERSITY_INITIALS, total_papers), fill = n)) + 
+  facet_wrap(~Revista) +
+  geom_tile() +
+  geom_text(aes(label = n), color = "white", show.legend = FALSE, size = 3) +
+  theme_minimal() +
+  scale_x_continuous(name = "", minor_breaks = NULL, labels = scales::number_format(accuracy = 1)) +
+  scale_fill_viridis_c(option = "viridis", na.value = "white") + 
+  theme(axis.title.y = element_blank()) +
+  theme(plot.caption = element_text(hjust = 0.5, size = rel(1))) +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+
 ```
 
 
 colaboracion entre autores (por coautorias == 1 articulo)
+
+
+los ultimos graficos son por revista
+1)   filter(Revista=="Revista de Psicología PUCP") %>%
+2)   filter(Revista=="Revista {PSOCIAL}") %>%
+3)   filter(Revista=="Universitas Psychologica") %>%
+
+che por lo que veo cada uno de las pequeñas redes son solo la coautoria en 1 paper... es de cir que no hay colaboración entre autores de distintos papers...
 
 ```{r autores, fig.height=6, fig.width=6}
 
@@ -273,12 +310,75 @@ autores %>%
     theme(axis.title.y=element_blank()) +
     theme(legend.position = "none")
 
+
+# por revista 
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Revista de Psicología PUCP") %>%
+  widyr::pairwise_count(item = AUTHOR, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(AUTHOR, name = "articulos"), by = c("name"="AUTHOR")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Revista {PSOCIAL}") %>%
+  widyr::pairwise_count(item = AUTHOR, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(AUTHOR, name = "articulos"), by = c("name"="AUTHOR")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Universitas Psychologica") %>%
+  widyr::pairwise_count(item = AUTHOR, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+    activate(nodes) %>%
+    left_join( autores %>% count(AUTHOR, name = "articulos"), by = c("name"="AUTHOR")) %>%
+  ggraph::ggraph(layout='fr') +
+    geom_edge_link()+
+    geom_node_point(aes(size=articulos)) +
+    geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    # geom_node_text(aes(label = name), repel = TRUE) + # size le damos el parametro de que el que publico mas, sea mas grande
+    theme_graph() +
+    theme(axis.title.y=element_blank()) +
+    theme(legend.position = "none")
+
 ```
 
 colaboracion entre universidades
 
 - el tamaño de la bola es la cantidad de articulos (contando a cada autor por separado)
 - el grosor de las lineas el grado de colaboraciones (contando a cada autor por separado)
+
+los ultimos graficos son por revista
+1)   filter(Revista=="Revista de Psicología PUCP") %>%
+2)   filter(Revista=="Revista {PSOCIAL}") %>%
+3)   filter(Revista=="Universitas Psychologica") %>%
+
 
 ```{r fig.height=3, fig.width=6}
 
@@ -297,10 +397,77 @@ autores %>%
   theme_graph() +
   theme(legend.position = "none")
 
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Revista de Psicología PUCP") %>%
+  widyr::pairwise_count(item = UNIVERSITY_INITIALS, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,  directed = FALSE) %>%
+  activate(nodes) %>% 
+  inner_join( autores %>%
+              count(UNIVERSITY_INITIALS, name = "art_totales") 
+              , by=c("name"="UNIVERSITY_INITIALS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  geom_edge_link(aes(alpha = n)  )+
+  geom_node_point(aes(size = art_totales)) +
+  geom_node_text(aes(label = toupper(name), size =  art_totales), repel = TRUE) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Revista {PSOCIAL}") %>%
+  widyr::pairwise_count(item = UNIVERSITY_INITIALS, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,  directed = FALSE) %>%
+  activate(nodes) %>% 
+  inner_join( autores %>%
+              count(UNIVERSITY_INITIALS, name = "art_totales") 
+              , by=c("name"="UNIVERSITY_INITIALS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  geom_edge_link(aes(alpha = n)  )+
+  geom_node_point(aes(size = art_totales)) +
+  geom_node_text(aes(label = toupper(name), size =  art_totales), repel = TRUE) +
+  theme_graph() +
+  theme(legend.position = "none")
+
+
+
+autores %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(Revista=="Universitas Psychologica") %>%
+  widyr::pairwise_count(item = UNIVERSITY_INITIALS, feature = ARTICLE) %>%
+  tidygraph::as_tbl_graph(.,  directed = FALSE) %>%
+  activate(nodes) %>% 
+  inner_join( autores %>%
+              count(UNIVERSITY_INITIALS, name = "art_totales") 
+              , by=c("name"="UNIVERSITY_INITIALS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  geom_edge_link(aes(alpha = n)  )+
+  geom_node_point(aes(size = art_totales)) +
+  geom_node_text(aes(label = toupper(name), size =  art_totales), repel = TRUE) +
+  theme_graph() +
+  theme(legend.position = "none")
+
 ```
 
 
 ## keywords
+
+
+
+los ultimos graficos son por revista
+1)   filter(Revista=="Revista de Psicología PUCP") %>%
+2)   filter(Revista=="Revista {PSOCIAL}") %>%
+3)   filter(Revista=="Universitas Psychologica") %>%
+
 
 ```{r wordcloud, fig.height=9, fig.width=9}
 
@@ -321,9 +488,78 @@ keywords %>%
   theme_minimal() + 
     scale_color_viridis_d(option = "viridis", na.value = "white")
 
+
+keywords %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(!is.na(KEYWORDS)) %>%
+  count(KEYWORDS, Revista) %>%
+  filter(Revista=="Revista de Psicología PUCP") %>%
+  ggplot(aes(label=KEYWORDS, size=n, color=KEYWORDS)) +
+  geom_text_wordcloud() + 
+    scale_size_area(max_size = 10) +
+  theme_minimal() + 
+    scale_color_viridis_d(option = "viridis", na.value = "white")
+
+keywords %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(!is.na(KEYWORDS)) %>%
+  count(KEYWORDS, Revista) %>%
+  filter(Revista=="Revista {PSOCIAL}") %>%
+  ggplot(aes(label=KEYWORDS, size=n, color=KEYWORDS)) +
+  geom_text_wordcloud() + 
+    scale_size_area(max_size = 10) +
+  theme_minimal() + 
+    scale_color_viridis_d(option = "viridis", na.value = "white")
+
+keywords %>% 
+  filter(!is.na(ARTICLE)) %>%
+  left_join(articles %>% select(ARTICLE,Revista), by="ARTICLE") %>% 
+  filter(!is.na(KEYWORDS)) %>%
+  count(KEYWORDS, Revista) %>%
+  filter(Revista=="Universitas Psychologica") %>%
+  ggplot(aes(label=KEYWORDS, size=n, color=KEYWORDS)) +
+  geom_text_wordcloud() + 
+    scale_size_area(max_size = 10) +
+  theme_minimal() + 
+    scale_color_viridis_d(option = "viridis", na.value = "white")
+
+
+
 ```
 
-(este grafico hay que chequearlo. creo que con los N de cada keyword piso la relacion!)
+5 keywords globales mas frecuentes (pasa que como hay empate son mas que 5)
+
+```{r}
+
+keywords %>% 
+  filter(!is.na(ARTICLE), !is.na(KEYWORDS)) %>%
+  left_join(articles %>% select(ARTICLE, Revista), by = "ARTICLE") %>% 
+  add_count(KEYWORDS, name = "global_n") %>% 
+  filter(dense_rank(desc(global_n)) <= 5) %>% 
+  mutate(KEYWORDS = fct_reorder(KEYWORDS, global_n)) %>% 
+  count(KEYWORDS, Revista, .drop = FALSE) %>% 
+  ggplot(aes(x = KEYWORDS, y = n, fill = Revista)) + 
+  geom_col() + 
+  coord_flip() +
+  facet_wrap(~Revista) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    strip.text = element_text(size = 7)
+  ) +
+  scale_fill_viridis_d(option = "turbo", na.value = "white") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
+
+```
+
+
 
 ```{r key2, fig.height=7}
 
@@ -360,5 +596,69 @@ keywords %>%
   geom_node_text(aes(label = str_to_title(name) ), repel = TRUE) +
   geom_node_point(aes(size = n)) +
   theme(legend.position = "none")
+
+
+
+keywords %>% 
+  filter(!is.na(ARTICLE), !is.na(KEYWORDS)) %>%
+  left_join(articles %>% select(ARTICLE, Revista), by = "ARTICLE") %>% 
+  filter(Revista=="Revista de Psicología PUCP") %>%
+  group_by(KEYWORDS) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = KEYWORDS, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(KEYWORDS) , by=c("name"="KEYWORDS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
+
+
+keywords %>% 
+  filter(!is.na(ARTICLE), !is.na(KEYWORDS)) %>%
+  left_join(articles %>% select(ARTICLE, Revista), by = "ARTICLE") %>% 
+  filter(Revista=="Revista {PSOCIAL}") %>%
+  group_by(KEYWORDS) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = KEYWORDS, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(KEYWORDS) , by=c("name"="KEYWORDS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
+
+keywords %>% 
+  filter(!is.na(ARTICLE), !is.na(KEYWORDS)) %>%
+  left_join(articles %>% select(ARTICLE, Revista), by = "ARTICLE") %>% 
+  filter(Revista=="Universitas Psychologica") %>%
+  group_by(KEYWORDS) %>% mutate(k=n()) %>% ungroup() %>%
+  # filter(k>1) %>%
+  widyr::pairwise_count(item = KEYWORDS, feature = ARTICLE, sort = TRUE) %>%
+  tidygraph::as_tbl_graph(.,
+  directed = FALSE) %>%
+  activate(nodes) %>% 
+    left_join(keywords %>% count(KEYWORDS) , by=c("name"="KEYWORDS") ) %>%
+  create_layout( layout = "kk") %>%
+  ggraph::ggraph(layout) +
+  theme_graph() +
+  geom_edge_link(aes(edge_alpha = n) )+
+  geom_node_text(aes(label = str_to_title(name), size = n ), repel = TRUE) +
+  geom_node_point(aes(size = n)) +
+  theme(legend.position = "none")
+
+
 
 ```
